@@ -12,7 +12,7 @@ import os
 CLASSES = ['No Tumor', 'Glioma', 'Meningioma', 'Pituitary']
 
 # Path to saved model
-MODEL_PATH = "rf_brain_tumor_model.joblib"
+MODEL_PATH = "rf_model.pkl"
 
 # Load model & feature extractor
 @st.cache_resource(hash_funcs={Model: lambda _: None})
@@ -121,6 +121,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
