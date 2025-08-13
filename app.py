@@ -77,7 +77,7 @@ def show_prediction_page(feature_model, clf):
 
     if uploaded_file is not None:
         image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_column_width=True)
+        st.image(image, caption="Uploaded Image", use_container_width=True)
 
         if st.button("Predict Tumor Type"):
             features = extract_features(image, feature_model)
@@ -128,6 +128,7 @@ elif app_mode == "Predict Tumor":
     show_prediction_page(feature_model, clf)
 elif app_mode == "Self Assessment":
     show_self_assessment()
+
 
 
 
