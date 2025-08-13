@@ -16,11 +16,23 @@ MODEL_PATH = "rf_model.pkl"
 
 # Load model & feature extractor
 @st.cache_resource(hash_funcs={Model: lambda _: None})
+MODEL_PATH = "rf_model.pkl"
+
+@st.cache_resource(hash_funcs={Model: lambda _: None})
 def load_model():
-    clf = joblib.load(MODEL_PATH)
+    if not os.path.exists(MODEL_PATH):
+        st.error(f"Model file not found at {MODEL_PATH}. Upload it to your repo or download it dynamically.")
+        st.stop()
+
+    # Use pickle instead of joblib if it was saved with pickle
+    import pickle
+    with open(MODEL_PATH, "rb") as f:
+        clf = pickle.load(f)
+
     base_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
     feature_extractor = Model(inputs=base_model.input, outputs=base_model.output)
     return clf, feature_extractor
+
 
 def extract_features(img, feature_extractor):
     img = img.resize((224, 224), Image.LANCZOS)
@@ -121,6 +133,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
