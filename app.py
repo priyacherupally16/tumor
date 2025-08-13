@@ -11,9 +11,6 @@ import os
 # Class names
 CLASSES = ['No Tumor', 'Glioma', 'Meningioma', 'Pituitary']
 
-# Path to saved model
-MODEL_PATH = "rf_model.pkl"
-
 # Load model & feature extractor
 @st.cache_resource(hash_funcs={Model: lambda _: None})
 MODEL_PATH = "rf_model.pkl"
@@ -25,7 +22,6 @@ def load_model():
         st.stop()
 
     # Use pickle instead of joblib if it was saved with pickle
-    import pickle
     with open(MODEL_PATH, "rb") as f:
         clf = pickle.load(f)
 
@@ -133,6 +129,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
