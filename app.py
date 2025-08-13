@@ -16,9 +16,24 @@ def load_feature_extractor():
 
 # Load trained classifier
 @st.cache_resource
+
 def load_classifier():
-    with open("rf_model.pkl", "rb") as f:
-        return pickle.load(f)
+    # Get the path to the folder where app.py is located
+    base_path = os.path.dirname(__file__)
+    
+    # Full path to rf_model.pkl
+    model_path = os.path.join(base_path, "rf_model.pkl")
+
+    # Check if file exists
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found at {model_path}")
+
+    # Load model
+    with open(model_path, "rb") as f:
+        clf = pickle.load(f)
+
+    return clf
+
 
 # Feature extraction
 def extract_features(img, feature_model):
@@ -112,6 +127,7 @@ elif app_mode == "Predict Tumor":
     show_prediction_page(feature_model, clf)
 elif app_mode == "Self Assessment":
     show_self_assessment()
+
 
 
 
