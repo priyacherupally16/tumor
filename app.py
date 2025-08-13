@@ -1,136 +1,117 @@
-import streamlit as st
+import os
 import numpy as np
+import streamlit as st
 from PIL import Image
-import joblib
+import pickle
+from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.applications.vgg16 import VGG16, preprocess_input
 from tensorflow.keras.models import Model
-import matplotlib.pyplot as plt
-import pickle
-import os
 
-# Class names
-CLASSES = ['No Tumor', 'Glioma', 'Meningioma', 'Pituitary']
+# Load VGG16 model for feature extraction
+@st.cache_resource
+def load_feature_extractor():
+    base_model = VGG16(weights="imagenet", include_top=False, input_shape=(128, 128, 3))
+    model = Model(inputs=base_model.input, outputs=base_model.output)
+    return model
 
-# Load model & feature extractor
-@st.cache_resource(hash_funcs={Model: lambda _: None})
-MODEL_PATH = "rf_model.pkl"
+# Load trained classifier
+@st.cache_resource
+def load_classifier():
+    with open("rf_model.pkl", "rb") as f:
+        return pickle.load(f)
 
-@st.cache_resource(hash_funcs={Model: lambda _: None})
-def load_model():
-    if not os.path.exists(MODEL_PATH):
-        st.error(f"Model file not found at {MODEL_PATH}. Upload it to your repo or download it dynamically.")
-        st.stop()
+# Feature extraction
+def extract_features(img, feature_model):
+    img = img.resize((128, 128))
+    img = img_to_array(img)
+    img = np.expand_dims(img, axis=0)
+    img = preprocess_input(img)
+    features = feature_model.predict(img)
+    return features.reshape(1, -1)
 
-    # Use pickle instead of joblib if it was saved with pickle
-    with open(MODEL_PATH, "rb") as f:
-        clf = pickle.load(f)
-
-    base_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
-    feature_extractor = Model(inputs=base_model.input, outputs=base_model.output)
-    return clf, feature_extractor
-
-
-def extract_features(img, feature_extractor):
-    img = img.resize((224, 224), Image.LANCZOS)
-    img_array = np.array(img)
-    if img_array.shape[-1] == 4:  # Convert RGBA to RGB if needed
-        img_array = img_array[..., :3]
-    img_array = np.expand_dims(img_array, axis=0)
-    img_array = preprocess_input(img_array)
-    features = feature_extractor.predict(img_array)
-    features = features.reshape(features.shape[0], -1)
-    return features
-
-def predict(img, clf, feature_extractor):
-    features = extract_features(img, feature_extractor)
-    pred = clf.predict(features)[0]
-    proba = clf.predict_proba(features)[0]
-    return pred, proba
-
-def home_page():
-    st.title("Brain Tumor Detection Application")
-    st.header("Brain Tumor Education and Awareness")
+# Show homepage
+def show_home():
+    st.title("🧠 Brain Tumor Detection & Awareness")
     st.markdown("""
-    ### What is a Brain Tumor?
-    A brain tumor is an abnormal growth of cells within the brain or central spinal canal. They can be **benign** or **malignant**.
-    
-    **Types:**
-    - **Glioma** – Tumors from glial cells, can be aggressive.
-    - **Meningioma** – Usually benign, from brain/spinal cord membranes.
-    - **Pituitary Tumor** – In pituitary gland, affecting hormones.
-    - **No Tumor** – Normal brain MRI.
-    
-    **Common Symptoms:**
-    Headaches, seizures, vision problems, nausea, balance issues, speech changes, memory problems, weakness, personality changes, fatigue.
+        ## What is a Brain Tumor?
+        A brain tumor is an abnormal growth of cells in the brain. It can be **malignant (cancerous)** or **benign (non-cancerous)**. Tumors affect brain function and can cause serious complications if untreated.
+
+        ### Types of Tumors:
+        - **Glioma**: Originates in the glial cells. Often aggressive.
+        - **Meningioma**: Develops in the meninges, typically benign but large ones can be harmful.
+        - **Pituitary Tumor**: Forms in the pituitary gland, may disrupt hormone production.
+        - **No Tumor**: Normal brain MRI.
+
+        ### Common Symptoms:
+        - Headaches (especially in the morning)
+        - Nausea or vomiting
+        - Vision problems
+        - Seizures
+        - Difficulty with balance or speech
+
+        ---
+        Use the menu to navigate through prediction or self-assessment.
     """)
 
-def prediction_page(clf, feature_extractor):
-    st.title("MRI Image Tumor Prediction")
-    uploaded_file = st.file_uploader("Upload MRI Brain Scan Image", type=["jpg", "jpeg", "png"])
-    if uploaded_file:
-        img = Image.open(uploaded_file)
-        st.image(img, caption="Uploaded MRI Image", use_column_width=True)
-        
+# Show prediction page
+def show_prediction_page(feature_model, clf):
+    st.title("🔍 Class-wise Brain Tumor Detection")
+
+    uploaded_file = st.file_uploader("Upload an MRI image", type=["jpg", "jpeg", "png"])
+
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Uploaded Image", use_column_width=True)
+
         if st.button("Predict Tumor Type"):
-            with st.spinner("Analyzing image..."):
-                pred, proba = predict(img, clf, feature_extractor)
-                st.success(f"Predicted Tumor Type: **{CLASSES[pred]}**")
-                
-                # Pie chart
-                fig, ax = plt.subplots()
-                ax.pie(proba, labels=CLASSES, autopct='%1.1f%%', startangle=90, colors=plt.cm.Paired.colors[:len(CLASSES)])
-                ax.axis('equal')
-                st.pyplot(fig)
-                plt.close(fig)
+            features = extract_features(image, feature_model)
+            prediction = clf.predict(features)
+            prob = clf.predict_proba(features)[0]
 
-def self_assessment_page():
-    st.title("Self Assessment: Brain Tumor Risk Analysis")
-    st.markdown("Answer the questions below with Yes or No to evaluate potential risk based on symptoms.")
-    
-    symptoms = [
-        "Persistent headaches",
-        "Seizures or convulsions",
-        "Vision problems",
-        "Nausea or vomiting",
-        "Difficulty with balance or walking",
-        "Changes in speech or hearing",
-        "Memory problems or confusion",
-        "Weakness or numbness in limbs",
-        "Personality or behavior changes",
-        "Fatigue or drowsiness",
-    ]
-    
-    responses = {symptom: st.radio(symptom, options=["No", "Yes"], index=0, horizontal=True) for symptom in symptoms}
-    
-    if st.button("Calculate Risk"):
-        score = sum(1 for answer in responses.values() if answer == "Yes")
-        st.write(f"Total symptoms reported as 'Yes': {score}")
-        
-        if score == 0:
-            st.success("Low risk. No significant symptoms detected.")
-        elif 1 <= score <= 3:
-            st.warning("Moderate risk. Consider consulting a healthcare professional if symptoms persist.")
+            labels = ["Glioma", "Meningioma", "No Tumor", "Pituitary"]
+            st.success(f"📌 Prediction: **{labels[prediction[0]]}**")
+
+            st.write("### Prediction Probabilities:")
+            fig, ax = plt.subplots()
+            ax.pie(prob, labels=labels, autopct="%1.1f%%", startangle=90)
+            ax.axis("equal")  # Equal aspect ratio makes the pie chart a circle.
+
+            st.pyplot(fig)
+
+# Show self-assessment
+def show_self_assessment():
+    st.title("🩺 Self Assessment")
+
+    st.markdown("Answer the following to get a basic risk score:")
+
+    q1 = st.selectbox("Do you experience frequent or severe headaches?", ["No", "Yes"])
+    q2 = st.selectbox("Do you have blurred vision or vision loss?", ["No", "Yes"])
+    q3 = st.selectbox("Do you feel dizzy or have balance issues?", ["No", "Yes"])
+    q4 = st.selectbox("Have you experienced seizures recently?", ["No", "Yes"])
+    q5 = st.selectbox("Do you have unexplained nausea or vomiting?", ["No", "Yes"])
+
+    if st.button("Assess My Risk"):
+        score = sum([q == "Yes" for q in [q1, q2, q3, q4, q5]])
+        if score >= 4:
+            st.error("⚠️ High Risk. Please consult a neurologist immediately.")
+        elif score >= 2:
+            st.warning("⚠️ Moderate Risk. Consider medical evaluation.")
         else:
-            st.error("High risk. Please consult a doctor immediately.")
+            st.success("✅ Low Risk. You seem to be okay, but stay aware of symptoms.")
+# Load models
+feature_model = load_feature_extractor()
+clf = load_classifier()
 
-def main():
-    st.sidebar.title("Navigation")
-    options = ["Home", "MRI Prediction", "Self Assessment"]
-    choice = st.sidebar.radio("Select a page", options)
-    
-    clf, feature_extractor = load_model()
-    
-    if choice == "Home":
-        home_page()
-    elif choice == "MRI Prediction":
-        prediction_page(clf, feature_extractor)
-    else:
-        self_assessment_page()
+# Navigation
+st.sidebar.title("Navigation")
+app_mode = st.sidebar.radio("Go to", ["Home", "Predict Tumor", "Self Assessment"])
 
-if __name__ == "__main__":
-    main()
-
-
+if app_mode == "Home":
+    show_home()
+elif app_mode == "Predict Tumor":
+    show_prediction_page(feature_model, clf)
+elif app_mode == "Self Assessment":
+    show_self_assessment()
 
 
 
