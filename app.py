@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import streamlit as st
+import matplotlib.pyplot as plt
 from PIL import Image
 import pickle
 from tensorflow.keras.preprocessing.image import img_to_array
@@ -127,6 +128,7 @@ elif app_mode == "Predict Tumor":
     show_prediction_page(feature_model, clf)
 elif app_mode == "Self Assessment":
     show_self_assessment()
+
 
 
 
