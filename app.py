@@ -104,19 +104,6 @@ def self_assessment_page():
             st.warning("Moderate risk. Consider consulting a healthcare professional if symptoms persist.")
         else:
             st.error("High risk. Please consult a doctor immediately.")
-def load_model():
-    model_path = "model.pkl"  # change if your file name is different
-
-    # Check if model exists
-    if not os.path.exists(model_path):
-        st.error(f"Model file not found at {model_path}")
-        st.stop()
-
-    # Load the model
-    with open(model_path, "rb") as f:
-        clf, feature_extractor = pickle.load(f)
-
-    return clf, feature_extractor
 
 def main():
     st.sidebar.title("Navigation")
@@ -134,5 +121,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
